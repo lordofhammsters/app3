@@ -1,25 +1,22 @@
 ﻿using System;
-using System.IO;
-using Android;
 using Android.App;
-using Android.Content.PM;
-using Android.Graphics;
-using Android.Widget;
 using Android.OS;
 using Android.Support.Design.Widget;
-using Android.Support.V4.Content;
+using Android.Support.V4.App;
 using Android.Support.V7.App;
 using Android.Views;
-using File = Java.IO.File;
-using IOException = Java.IO.IOException;
+using Android.Widget;
+using Java.Lang;
 
 namespace App5
 {
 	[Activity(Label = "@string/app_name", Theme = "@style/AppTheme.NoActionBar", MainLauncher = true)]
 	public class MainActivity : AppCompatActivity
 	{
+	    private TextView label;
+	    private Handler handler;
 
-		protected override void OnCreate(Bundle savedInstanceState)
+        protected override void OnCreate(Bundle savedInstanceState)
 		{
 			base.OnCreate(savedInstanceState);
 
@@ -30,106 +27,73 @@ namespace App5
 
 			FloatingActionButton fab = FindViewById<FloatingActionButton>(Resource.Id.fab);
             fab.Click += FabOnClick;
+
+		    label = FindViewById<TextView>(Resource.Id.myTextView);
+            label.Text = "hi!";
+
+		    handler = new Handler(msg =>
+		    {
+		        label.Text = (string) msg.Obj;
+
+                // add push notification
+		        var n = new NotificationCompat.Builder(this);
+		        n.SetSmallIcon(Resource.Drawable.navigation_empty_icon);
+		        n.SetContentTitle((string)msg.Obj);
+		        n.SetContentText("");
+		        n.SetPriority(NotificationCompat.PriorityMax);
+
+		        var notificationManager = NotificationManagerCompat.From(this);
+		        notificationManager.Notify(1, n.Build());
+		    });
+
+		    var thread = new Thread(GetScreenshots);
+            thread.Start();
 		}
 
-		public override bool OnCreateOptionsMenu(IMenu menu)
-        {
-            MenuInflater.Inflate(Resource.Menu.menu_main, menu);
-            return true;
-        }
-
-        public override bool OnOptionsItemSelected(IMenuItem item)
-        {
-            int id = item.ItemId;
-            if (id == Resource.Id.action_settings)
-            {
-                return true;
-            }
-
-            return base.OnOptionsItemSelected(item);
-        }
-
-        private void FabOnClick(object sender, EventArgs eventArgs)
-        {
-            //View view = (View) sender;
-            //Snackbar.Make(view, "Replace with your own action", Snackbar.LengthLong)
-            //    .SetAction("Action", (Android.Views.View.IOnClickListener)null).Show();
-
-            GetNewScreenshots();
-        }
-
-
-	    public void GetNewScreenshots()
+	    private void GetScreenshots()
 	    {
-	        //check for permission
-	        //if (ContextCompat.CheckSelfPermission(this, Manifest.Permission.ReadExternalStorage) == Permission.Denied)
-	        //{
-	        //    //ask for permission
-	        //    RequestPermissions(new String[] {Manifest.Permission.ReadExternalStorage}, REQUEST_CODE); //READ_EXTERNAL_STORAGE_PERMISSION_CODE);
-	        //}
+	        var i = 0;
+	        var service = new ScreenshotService();
 
-            // https://stackoverflow.com/questions/9667297/path-to-screenshots-in-android
-
-            var pix = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryDcim); // DirectoryPictures
-            var screenshotsDir = new File(pix, "Screenshots");
-
-	        var files = screenshotsDir.ListFiles();
-
-	        var label = FindViewById<TextView>(Resource.Id.myTextView);
-
-	        label.Text = screenshotsDir.AbsolutePath + (screenshotsDir.Exists() ? " exist! " : " not exist! ") + " pictures count = " + (files != null ? files.Length : 0);
-
-
-            var test = new File(Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryPictures), "Screenshots");
-	        label.Text += "  " + test.AbsolutePath + (test.Exists() ? " exist! " : " not exist! ") + " count " + (test.ListFiles() != null ? test.ListFiles().Length : 0);
-	    }
-
-	    private void ShareScreen()
-	    {
-	        try
+	        while (true)
 	        {
-	            var photoName = "/test_" + DateTime.Now.ToString("dd_hh_mm_ss") + ".png";
+	            service.Log += "Trying " + i + "\r\n";
 
+	            var response = service.TryGetNewScreenshotAndSendToServer();
+	            if (!string.IsNullOrEmpty(response))
+	            {
+	                handler.SendMessage(new Message() {Obj = response});  // service.Log
+	            }
 
-	            var pix = Android.OS.Environment.GetExternalStoragePublicDirectory(Android.OS.Environment.DirectoryPictures);
-	            var filePath = new File(pix, "Screenshots" + photoName);
-
-	            //if (filePath.Exists())
-	            //    filePath.Delete();
-
-	            SavePic(ScreenShot(Window.DecorView), filePath.AbsolutePath);
-	        }
-	        catch (Java.Lang.NullPointerException ignored)
-	        {
-	            ignored.PrintStackTrace();
+	            Thread.Sleep(500);
+	            i++;
 	        }
 	    }
 
-	    private static void SavePic(Bitmap b, string strFileName)
-	    {
-	        try
-	        {
-	            var stream = new FileStream(strFileName, FileMode.Create);
-	            b.Compress(Bitmap.CompressFormat.Png, 100, stream);
-	            stream.Flush();
-	            stream.Close();
-	        }
-	        catch (IOException e)
-	        {
-	            e.PrintStackTrace();
-	        }
-	        catch (System.Exception ex)
-	        {
 
-	        }
+
+	    public override bool OnCreateOptionsMenu(IMenu menu)
+	    {
+	        MenuInflater.Inflate(Resource.Menu.menu_main, menu);
+	        return true;
 	    }
 
-	    private Bitmap ScreenShot(View view)
+	    public override bool OnOptionsItemSelected(IMenuItem item)
 	    {
-	        var bitmap = Bitmap.CreateBitmap(view.Width, view.Height, Bitmap.Config.Argb8888);
-	        var canvas = new Canvas(bitmap);
-	        view.Draw(canvas);
-	        return bitmap;
+	        int id = item.ItemId;
+	        if (id == Resource.Id.action_settings)
+	        {
+	            return true;
+	        }
+
+	        return base.OnOptionsItemSelected(item);
+	    }
+
+	    private void FabOnClick(object sender, EventArgs eventArgs)
+	    {
+	        //View view = (View) sender;
+	        //Snackbar.Make(view, "Replace with your own action", Snackbar.LengthLong)
+	        //    .SetAction("Action", (Android.Views.View.IOnClickListener)null).Show();
 	    }
 
     }
