@@ -7,7 +7,7 @@ namespace App5
 {
     internal class ScreenshotService
     {
-        private const string UpLoadServerUri = "http://api.vegate.net/file";   //"http://37.18.74.149/test/home/test";
+        private const string UpLoadServerUri = "http://37.18.74.149/test/home/test"; // "http://api.vegate.net/file";
         private List<string> _filesList = new List<string>();
         private bool _firstTime = true;
 

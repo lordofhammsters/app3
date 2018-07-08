@@ -1,5 +1,7 @@
 ﻿using System;
 using Android.App;
+using Android.Content;
+using Android.Media;
 using Android.OS;
 using Android.Support.Design.Widget;
 using Android.Support.V4.App;
@@ -28,7 +30,16 @@ namespace App5
 			FloatingActionButton fab = FindViewById<FloatingActionButton>(Resource.Id.fab);
             fab.Click += FabOnClick;
 
-		    label = FindViewById<TextView>(Resource.Id.myTextView);
+            // 1 way to detect volume button click
+            //var receiver = new MessageReceiver();
+            //RegisterReceiver(receiver, new IntentFilter("android.media.VOLUME_CHANGED_ACTION"));  //"android.media.VOLUME_CHANGED_ACTION"));
+
+		    // 2 way to detect volume button click
+            var obs = new SettingsContentObserver(this, new Handler());
+            ApplicationContext.ContentResolver.RegisterContentObserver(Android.Provider.Settings.System.ContentUri, true, obs);
+
+
+            label = FindViewById<TextView>(Resource.Id.myTextView);
             label.Text = "hi!";
 
 		    handler = new Handler(msg =>
