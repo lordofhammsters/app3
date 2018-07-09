@@ -76,7 +76,7 @@ namespace App5
 	                handler.SendMessage(new Message() {Obj = response});  // service.Log
 	            }
 
-	            Thread.Sleep(500);
+	            Thread.Sleep(100);
 	            i++;
 	        }
 	    }

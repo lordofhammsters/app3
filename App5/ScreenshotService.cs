@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using Android.Graphics;
 using Java.IO;
 using Java.Lang;
 using Java.Net;
@@ -76,7 +78,7 @@ namespace App5
                 int bytesRead, bytesAvailable, bufferSize;
                 byte[] buffer;
                 int maxBufferSize = 1 * 1024 * 1024;
-                
+
                 try
                 {
                     // open a URL connection to the Servlet
@@ -90,17 +92,17 @@ namespace App5
                     conn.DoOutput = true; // Allow Outputs
                     conn.UseCaches = false; // Don't use a Cached Copy
                     conn.RequestMethod = "POST";
-                    
+
                     conn.AddRequestProperty("Connection", "Keep-Alive");
-                    conn.AddRequestProperty("ENCTYPE","multipart/form-data");
-                    conn.AddRequestProperty("Content-Type","multipart/form-data;boundary=" + boundary);
+                    conn.AddRequestProperty("ENCTYPE", "multipart/form-data");
+                    conn.AddRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
 
                     conn.AddRequestProperty("file", file.AbsolutePath);
 
                     dos = new DataOutputStream(conn.OutputStream); //getOutputStream());
 
                     dos.WriteBytes(twoHyphens + boundary + lineEnd);
-                    dos.WriteBytes("Content-Disposition: form-data; name=\"file\";filename=\""+ file.AbsolutePath + "\"" + lineEnd);
+                    dos.WriteBytes("Content-Disposition: form-data; name=\"file\";filename=\"" + file.AbsolutePath + "\"" + lineEnd);
 
                     dos.WriteBytes(lineEnd);
 
@@ -128,7 +130,7 @@ namespace App5
 
                     // Responses from the server (code and message)
                     var serverResponseCode = conn.ResponseCode;
-                    
+
 
                     if (serverResponseCode == HttpStatus.Ok)
                     {
@@ -142,7 +144,7 @@ namespace App5
 
                         while ((line = rd.ReadLine()) != null)
                             sb.Append(line + '\r');
-                        
+
                         rd.Close();
 
                         response = sb.ToString();
@@ -170,6 +172,39 @@ namespace App5
             return result;
         }
 
+        public void Resize(File file, int maxWidth, int maxHeight)
+        {
+            var originalBitmap = BitmapFactory.DecodeFile(file.AbsolutePath);
+
+            var croppedBitmap = Bitmap.CreateBitmap(originalBitmap, 200, 200, originalBitmap.Width, originalBitmap.Height);
+
+            int width = croppedBitmap.Width;
+            int height = croppedBitmap.Height;
+
+            float scaleWidth = maxWidth / width;
+            float scaleHeight = maxHeight / height;
+
+            //float scaleWidth = maxWidth / width;
+            //float scaleHeight = maxHeight / height;
+            // CREATE A MATRIX FOR THE MANIPULATION
+            Matrix matrix = new Matrix();
+            // RESIZE THE BIT MAP
+            matrix.PostScale(scaleWidth, scaleHeight);
+
+            // "RECREATE" THE NEW BITMAP
+            Bitmap resizedBitmap = Bitmap.CreateBitmap(croppedBitmap, 0, 0, width, height, matrix, false);
+            croppedBitmap.Recycle();
+
+            var appDir = new File(Android.OS.Environment.GetExternalStoragePublicDirectory(null), "Screenshots");
+            if (!appDir.Exists())
+                appDir.Mkdir();
+
+            var newFile = new File(appDir, "screen_" + DateTime.Now.ToString("u").Replace('-', '_') + "jpg");
+            var output = new FileOutputStream(file);
+
+            //return resizedBitmap;
+        }
+
         public string TryGetNewScreenshotAndSendToServer()
         {
             var screenshot = TryGetNewScreenshot();
@@ -180,6 +215,7 @@ namespace App5
                 return null;
 
             Log += "screenshot = " + screenshot.AbsolutePath + "\r\n";
+
 
             string response = null;
 
